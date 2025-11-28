@@ -1,5 +1,70 @@
 import { dlopen, type Pointer, suffix } from "bun:ffi";
 import { join } from "path";
+import { existsSync } from "fs";
+import { arch, platform } from "os";
+
+// Embed native libraries for bun compile (type: "file" embeds them in the binary)
+// @ts-ignore - import attribute for embedding binary files
+import embeddedDarwinArm64 from "../dist/darwin-arm64/libyoga.dylib" with { type: "file" };
+// @ts-ignore - import attribute for embedding binary files
+import embeddedDarwinX64 from "../dist/darwin-x64/libyoga.dylib" with { type: "file" };
+// @ts-ignore - import attribute for embedding binary files
+import embeddedLinuxX64 from "../dist/linux-x64/libyoga.so" with { type: "file" };
+// @ts-ignore - import attribute for embedding binary files
+import embeddedLinuxArm64 from "../dist/linux-arm64/libyoga.so" with { type: "file" };
+
+// Platform detection
+function getPlatformTarget(): string {
+  const p = platform();
+  const a = arch();
+
+  if (p === "darwin") {
+    return a === "arm64" ? "darwin-arm64" : "darwin-x64";
+  } else if (p === "linux") {
+    return a === "arm64" ? "linux-arm64" : "linux-x64";
+  }
+  throw new Error(`Unsupported platform: ${p}-${a}`);
+}
+
+function getEmbeddedLib(): string | undefined {
+  const target = getPlatformTarget();
+  const libs: Record<string, string> = {
+    "darwin-arm64": embeddedDarwinArm64,
+    "darwin-x64": embeddedDarwinX64,
+    "linux-x64": embeddedLinuxX64,
+    "linux-arm64": embeddedLinuxArm64,
+  };
+  return libs[target];
+}
+
+function getLibPath(): string {
+  const libName = `libyoga.${suffix}`;
+  const target = getPlatformTarget();
+
+  // Check local development path (zig-out) first for development
+  const devPath = join(import.meta.dir, "..", "zig-out", "lib", libName);
+  if (existsSync(devPath)) {
+    return devPath;
+  }
+
+  // Check embedded libraries (for bun compile)
+  const embedded = getEmbeddedLib();
+  if (embedded && existsSync(embedded)) {
+    return embedded;
+  }
+
+  // Check npm package dist paths
+  const distPath = join(import.meta.dir, "..", "dist", target, libName);
+  if (existsSync(distPath)) {
+    return distPath;
+  }
+
+  throw new Error(
+    `Could not find native library ${libName}. ` +
+      `Looked in:\n  - ${devPath}\n  - ${distPath}\n` +
+      `Make sure to run 'zig build' or install the package with binaries.`
+  );
+}
 
 // Yoga enum definitions
 export const Align = {
@@ -180,11 +245,8 @@ export const DIRECTION_INHERIT = Direction.Inherit;
 export const DIRECTION_LTR = Direction.LTR;
 export const DIRECTION_RTL = Direction.RTL;
 
-// Get library path
-const libPath = join(import.meta.dir, "..", "zig-out", "lib", `libyoga.${suffix}`);
-
 // Load the library
-const lib = dlopen(libPath, {
+const lib = dlopen(getLibPath(), {
   // Config functions
   ygConfigNew: { args: [], returns: "ptr" },
   ygConfigFree: { args: ["ptr"], returns: "void" },
@@ -349,6 +411,12 @@ export class Node {
     yg.ygNodeReset(this.ptr);
   }
 
+  clone(): Node {
+    const ptr = yg.ygNodeClone(this.ptr);
+    if (!ptr) throw new Error("Failed to clone node");
+    return new Node(ptr);
+  }
+
   // Hierarchy
   insertChild(child: Node, index: number): void {
     yg.ygNodeInsertChild(this.ptr, child.ptr, index);
@@ -356,6 +424,10 @@ export class Node {
 
   removeChild(child: Node): void {
     yg.ygNodeRemoveChild(this.ptr, child.ptr);
+  }
+
+  removeAllChildren(): void {
+    yg.ygNodeRemoveAllChildren(this.ptr);
   }
 
   getChild(index: number): Node | null {
@@ -530,6 +602,10 @@ export class Node {
 
   setFlex(flex: number): void {
     yg.ygNodeStyleSetFlex(this.ptr, flex);
+  }
+
+  getFlex(): number {
+    return yg.ygNodeStyleGetFlex(this.ptr);
   }
 
   setFlexGrow(flexGrow: number): void {

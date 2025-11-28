@@ -57,10 +57,10 @@ Create a Bun FFI wrapper for Facebook's Yoga layout engine with a yoga-layout co
 ### Node Creation/Destruction
 - [x] `Node.create()` / `Node.createWithConfig()`
 - [x] `free()` / `freeRecursive()`
-- [x] `reset()`
+- [x] `reset()` / `clone()`
 
 ### Child Management
-- [x] `insertChild()` / `removeChild()`
+- [x] `insertChild()` / `removeChild()` / `removeAllChildren()`
 - [x] `getChild()` / `getChildCount()` / `getParent()`
 
 ### Layout
@@ -77,7 +77,7 @@ Create a Bun FFI wrapper for Facebook's Yoga layout engine with a yoga-layout co
 - [x] `setDirection()` / `setFlexDirection()`
 - [x] `setJustifyContent()` / `setAlignContent()` / `setAlignItems()` / `setAlignSelf()`
 - [x] `setPositionType()` / `setFlexWrap()` / `setOverflow()` / `setDisplay()`
-- [x] `setFlex()` / `setFlexGrow()` / `setFlexShrink()`
+- [x] `setFlex()` / `getFlex()` / `setFlexGrow()` / `setFlexShrink()`
 - [x] `setFlexBasis()` / `setFlexBasisPercent()` / `setFlexBasisAuto()`
 - [x] `setPosition()` / `setPositionPercent()` / `setPositionAuto()`
 - [x] `setMargin()` / `setMarginPercent()` / `setMarginAuto()`
@@ -98,6 +98,12 @@ Create a Bun FFI wrapper for Facebook's Yoga layout engine with a yoga-layout co
 - [x] All Direction, FlexDirection, Justify, Align values
 - [x] All Edge, Wrap, Overflow, Display, PositionType values
 - [x] All Gutter, Unit, MeasureMode values
+
+## Not Implemented (Complex/Low Priority)
+- [ ] `setMeasureFunc()` - Requires JSCallback for native-to-JS calls
+- [ ] `setBaselineFunc()` - Requires JSCallback for native-to-JS calls  
+- [ ] `setDirtiedFunc()` - Requires JSCallback for native-to-JS calls
+- [ ] Style value getters returning YGValue (would need struct handling)
 
 ## Build Commands
 ```bash
