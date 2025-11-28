@@ -47,3 +47,6 @@ read all necessary information of these modules
 keep a progress.md file with the current progress and decisions made in the project so you can read it again after compaction. keep important todos there too. with the APIs implemented and to implement
 
 every new message check if this file already exists in case you have been revived after compaction
+
+
+commit after every important step is accomplished. commit after every bullet point of part 1
