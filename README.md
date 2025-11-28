@@ -6,6 +6,20 @@ A fast FFI wrapper for Facebook's [Yoga](https://yogalayout.dev/) layout engine,
 
 Benchmarks showed FFI is faster than NAPI for this use case.
 
+## Supported Platforms
+
+Pre-built binaries are included in the npm package for:
+
+| Platform | Architecture | Binary |
+|----------|--------------|--------|
+| macOS    | ARM64 (Apple Silicon) | `libyoga.dylib` |
+| macOS    | x64 (Intel) | `libyoga.dylib` |
+| Linux    | x64 | `libyoga.so` |
+| Linux    | ARM64 | `libyoga.so` |
+| Windows  | x64 | `yoga.dll` |
+
+The correct binary is automatically loaded at runtime based on your platform.
+
 ## Installation
 
 ```bash
