@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.2.0
+
+### Breaking Changes
+- Method signatures updated to match yoga-layout exactly (accepts `undefined`)
+
+### New Features
+- **Type exports**: All enums now export corresponding TypeScript types (e.g., `Align` works as both value and type)
+- **String value support**: Methods now accept percent strings (`"50%"`) and `"auto"` like yoga-layout:
+  - `setWidth`, `setHeight`: accept `number | "auto" | \`${number}%\` | undefined`
+  - `setMinWidth`, `setMinHeight`, `setMaxWidth`, `setMaxHeight`: accept `number | \`${number}%\` | undefined`
+  - `setMargin`: accepts `number | "auto" | \`${number}%\` | undefined`
+  - `setPadding`: accepts `number | \`${number}%\` | undefined`
+  - `setGap`: accepts `number | \`${number}%\` | undefined`
+  - `setPosition`: accepts `number | \`${number}%\` | undefined`
+  - `setFlexBasis`: accepts `number | "auto" | \`${number}%\` | undefined`
+
+### New Methods
+- `Node.copyStyle(node)`: Copy style from another node
+- `Node.setBoxSizing(boxSizing)` / `Node.getBoxSizing()`: Box sizing support
+- `Node.setIsReferenceBaseline(isReferenceBaseline)` / `Node.isReferenceBaseline()`: Reference baseline support
+- `Node.setAlwaysFormsContainingBlock(alwaysFormsContainingBlock)`: Containing block support
+- `Config.setErrata(errata)` / `Config.getErrata()`: Errata configuration
+- `Config.setExperimentalFeatureEnabled(feature, enabled)` / `Config.isExperimentalFeatureEnabled(feature)`: Experimental features
+
+### Internal
+- Added `Value` type for yoga-layout compatibility
+- Added comprehensive tests for string value parsing
+
 ## 0.1.3
 
 - Fixed Windows CI: prepare DLL path before running tests

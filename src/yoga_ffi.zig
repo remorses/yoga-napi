@@ -389,6 +389,16 @@ pub export fn ygNodeStyleGetDisplay(node: YGNodeConstRef) YGDisplay {
     return c.YGNodeStyleGetDisplay(node);
 }
 
+/// Sets box sizing
+pub export fn ygNodeStyleSetBoxSizing(node: YGNodeRef, boxSizing: YGBoxSizing) void {
+    c.YGNodeStyleSetBoxSizing(node, boxSizing);
+}
+
+/// Gets box sizing
+pub export fn ygNodeStyleGetBoxSizing(node: YGNodeConstRef) YGBoxSizing {
+    return c.YGNodeStyleGetBoxSizing(node);
+}
+
 //=============================================================================
 // STYLE - FLEX PROPERTIES
 //=============================================================================

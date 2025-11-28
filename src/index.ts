@@ -99,28 +99,33 @@ export const Align = {
   SpaceAround: 7,
   SpaceEvenly: 8,
 } as const;
+export type Align = (typeof Align)[keyof typeof Align];
 
 export const BoxSizing = {
   BorderBox: 0,
   ContentBox: 1,
 } as const;
+export type BoxSizing = (typeof BoxSizing)[keyof typeof BoxSizing];
 
 export const Dimension = {
   Width: 0,
   Height: 1,
 } as const;
+export type Dimension = (typeof Dimension)[keyof typeof Dimension];
 
 export const Direction = {
   Inherit: 0,
   LTR: 1,
   RTL: 2,
 } as const;
+export type Direction = (typeof Direction)[keyof typeof Direction];
 
 export const Display = {
   Flex: 0,
   None: 1,
   Contents: 2,
 } as const;
+export type Display = (typeof Display)[keyof typeof Display];
 
 export const Edge = {
   Left: 0,
@@ -133,6 +138,7 @@ export const Edge = {
   Vertical: 7,
   All: 8,
 } as const;
+export type Edge = (typeof Edge)[keyof typeof Edge];
 
 export const Errata = {
   None: 0,
@@ -142,10 +148,13 @@ export const Errata = {
   All: 2147483647,
   Classic: 2147483646,
 } as const;
+export type Errata = (typeof Errata)[keyof typeof Errata];
 
 export const ExperimentalFeature = {
   WebFlexBasis: 0,
 } as const;
+export type ExperimentalFeature =
+  (typeof ExperimentalFeature)[keyof typeof ExperimentalFeature];
 
 export const FlexDirection = {
   Column: 0,
@@ -153,12 +162,14 @@ export const FlexDirection = {
   Row: 2,
   RowReverse: 3,
 } as const;
+export type FlexDirection = (typeof FlexDirection)[keyof typeof FlexDirection];
 
 export const Gutter = {
   Column: 0,
   Row: 1,
   All: 2,
 } as const;
+export type Gutter = (typeof Gutter)[keyof typeof Gutter];
 
 export const Justify = {
   FlexStart: 0,
@@ -168,6 +179,7 @@ export const Justify = {
   SpaceAround: 4,
   SpaceEvenly: 5,
 } as const;
+export type Justify = (typeof Justify)[keyof typeof Justify];
 
 export const LogLevel = {
   Error: 0,
@@ -177,29 +189,34 @@ export const LogLevel = {
   Verbose: 4,
   Fatal: 5,
 } as const;
+export type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];
 
 export const MeasureMode = {
   Undefined: 0,
   Exactly: 1,
   AtMost: 2,
 } as const;
+export type MeasureMode = (typeof MeasureMode)[keyof typeof MeasureMode];
 
 export const NodeType = {
   Default: 0,
   Text: 1,
 } as const;
+export type NodeType = (typeof NodeType)[keyof typeof NodeType];
 
 export const Overflow = {
   Visible: 0,
   Hidden: 1,
   Scroll: 2,
 } as const;
+export type Overflow = (typeof Overflow)[keyof typeof Overflow];
 
 export const PositionType = {
   Static: 0,
   Relative: 1,
   Absolute: 2,
 } as const;
+export type PositionType = (typeof PositionType)[keyof typeof PositionType];
 
 export const Unit = {
   Undefined: 0,
@@ -207,12 +224,14 @@ export const Unit = {
   Percent: 2,
   Auto: 3,
 } as const;
+export type Unit = (typeof Unit)[keyof typeof Unit];
 
 export const Wrap = {
   NoWrap: 0,
   Wrap: 1,
   WrapReverse: 2,
 } as const;
+export type Wrap = (typeof Wrap)[keyof typeof Wrap];
 
 // Constants for yoga-layout compatibility
 export const EDGE_LEFT = Edge.Left;
@@ -266,6 +285,36 @@ export const DIRECTION_INHERIT = Direction.Inherit;
 export const DIRECTION_LTR = Direction.LTR;
 export const DIRECTION_RTL = Direction.RTL;
 
+// ============================================================================
+// Value type for yoga-layout compatibility
+// ============================================================================
+
+export type Value = {
+  unit: Unit;
+  value: number;
+};
+
+// Helper to parse value strings like "auto", "50%", or numbers
+type ValueInput = number | "auto" | `${number}%` | undefined;
+type ValueInputWithAuto = number | "auto" | `${number}%` | undefined;
+type ValueInputNoAuto = number | `${number}%` | undefined;
+
+function parseValue(value: ValueInput): {
+  unit: Unit;
+  asNumber: number | undefined;
+} {
+  if (value === undefined) {
+    return { unit: Unit.Undefined, asNumber: undefined };
+  }
+  if (value === "auto") {
+    return { unit: Unit.Auto, asNumber: undefined };
+  }
+  if (typeof value === "string" && value.endsWith("%")) {
+    return { unit: Unit.Percent, asNumber: parseFloat(value) };
+  }
+  return { unit: Unit.Point, asNumber: value as number };
+}
+
 // Load the library
 const lib = dlopen(getLibPath(), {
   // Config functions
@@ -276,6 +325,16 @@ const lib = dlopen(getLibPath(), {
   ygConfigGetUseWebDefaults: { args: ["ptr"], returns: "bool" },
   ygConfigSetPointScaleFactor: { args: ["ptr", "f32"], returns: "void" },
   ygConfigGetPointScaleFactor: { args: ["ptr"], returns: "f32" },
+  ygConfigSetErrata: { args: ["ptr", "i32"], returns: "void" },
+  ygConfigGetErrata: { args: ["ptr"], returns: "i32" },
+  ygConfigSetExperimentalFeatureEnabled: {
+    args: ["ptr", "i32", "bool"],
+    returns: "void",
+  },
+  ygConfigIsExperimentalFeatureEnabled: {
+    args: ["ptr", "i32"],
+    returns: "bool",
+  },
 
   // Node creation and management
   ygNodeNew: { args: [], returns: "ptr" },
@@ -284,6 +343,13 @@ const lib = dlopen(getLibPath(), {
   ygNodeFree: { args: ["ptr"], returns: "void" },
   ygNodeFreeRecursive: { args: ["ptr"], returns: "void" },
   ygNodeReset: { args: ["ptr"], returns: "void" },
+  ygNodeCopyStyle: { args: ["ptr", "ptr"], returns: "void" },
+  ygNodeSetIsReferenceBaseline: { args: ["ptr", "bool"], returns: "void" },
+  ygNodeIsReferenceBaseline: { args: ["ptr"], returns: "bool" },
+  ygNodeSetAlwaysFormsContainingBlock: {
+    args: ["ptr", "bool"],
+    returns: "void",
+  },
 
   // Node hierarchy management
   ygNodeInsertChild: { args: ["ptr", "ptr", "u64"], returns: "void" },
@@ -332,6 +398,8 @@ const lib = dlopen(getLibPath(), {
   ygNodeStyleGetOverflow: { args: ["ptr"], returns: "i32" },
   ygNodeStyleSetDisplay: { args: ["ptr", "i32"], returns: "void" },
   ygNodeStyleGetDisplay: { args: ["ptr"], returns: "i32" },
+  ygNodeStyleSetBoxSizing: { args: ["ptr", "i32"], returns: "void" },
+  ygNodeStyleGetBoxSizing: { args: ["ptr"], returns: "i32" },
 
   // Style properties - Flex
   ygNodeStyleSetFlex: { args: ["ptr", "f32"], returns: "void" },
@@ -483,6 +551,22 @@ export class Node {
     const ptr = yg.ygNodeClone(this.ptr);
     if (!ptr) throw new Error("Failed to clone node");
     return new Node(ptr);
+  }
+
+  copyStyle(node: Node): void {
+    yg.ygNodeCopyStyle(this.ptr, node.ptr);
+  }
+
+  setIsReferenceBaseline(isReferenceBaseline: boolean): void {
+    yg.ygNodeSetIsReferenceBaseline(this.ptr, isReferenceBaseline);
+  }
+
+  isReferenceBaseline(): boolean {
+    return yg.ygNodeIsReferenceBaseline(this.ptr);
+  }
+
+  setAlwaysFormsContainingBlock(alwaysFormsContainingBlock: boolean): void {
+    yg.ygNodeSetAlwaysFormsContainingBlock(this.ptr, alwaysFormsContainingBlock);
   }
 
   // Hierarchy
@@ -668,6 +752,14 @@ export class Node {
     return yg.ygNodeStyleGetDisplay(this.ptr);
   }
 
+  setBoxSizing(boxSizing: BoxSizing): void {
+    yg.ygNodeStyleSetBoxSizing(this.ptr, boxSizing);
+  }
+
+  getBoxSizing(): BoxSizing {
+    return yg.ygNodeStyleGetBoxSizing(this.ptr) as BoxSizing;
+  }
+
   setFlex(flex: number): void {
     yg.ygNodeStyleSetFlex(this.ptr, flex);
   }
@@ -692,132 +784,210 @@ export class Node {
     return yg.ygNodeStyleGetFlexShrink(this.ptr);
   }
 
-  setFlexBasis(flexBasis: number | "auto"): void {
-    if (flexBasis === "auto") {
+  setFlexBasis(flexBasis: number | "auto" | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(flexBasis);
+    if (unit === Unit.Auto) {
       yg.ygNodeStyleSetFlexBasisAuto(this.ptr);
-    } else {
-      yg.ygNodeStyleSetFlexBasis(this.ptr, flexBasis);
+    } else if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetFlexBasisPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetFlexBasis(this.ptr, asNumber);
     }
   }
 
-  setFlexBasisPercent(flexBasis: number): void {
-    yg.ygNodeStyleSetFlexBasisPercent(this.ptr, flexBasis);
+  setFlexBasisPercent(flexBasis: number | undefined): void {
+    if (flexBasis !== undefined) {
+      yg.ygNodeStyleSetFlexBasisPercent(this.ptr, flexBasis);
+    }
   }
 
   setFlexBasisAuto(): void {
     yg.ygNodeStyleSetFlexBasisAuto(this.ptr);
   }
 
-  setPosition(edge: number, position: number): void {
-    yg.ygNodeStyleSetPosition(this.ptr, edge, position);
-  }
-
-  setPositionPercent(edge: number, position: number): void {
-    yg.ygNodeStyleSetPositionPercent(this.ptr, edge, position);
-  }
-
-  setPositionAuto(edge: number): void {
-    yg.ygNodeStyleSetPositionAuto(this.ptr, edge);
-  }
-
-  setMargin(edge: number, margin: number): void {
-    yg.ygNodeStyleSetMargin(this.ptr, edge, margin);
-  }
-
-  setMarginPercent(edge: number, margin: number): void {
-    yg.ygNodeStyleSetMarginPercent(this.ptr, edge, margin);
-  }
-
-  setMarginAuto(edge: number): void {
-    yg.ygNodeStyleSetMarginAuto(this.ptr, edge);
-  }
-
-  setPadding(edge: number, padding: number): void {
-    yg.ygNodeStyleSetPadding(this.ptr, edge, padding);
-  }
-
-  setPaddingPercent(edge: number, padding: number): void {
-    yg.ygNodeStyleSetPaddingPercent(this.ptr, edge, padding);
-  }
-
-  setBorder(edge: number, border: number): void {
-    yg.ygNodeStyleSetBorder(this.ptr, edge, border);
-  }
-
-  getBorder(edge: number): number {
-    return yg.ygNodeStyleGetBorder(this.ptr, edge);
-  }
-
-  setGap(gutter: number, gap: number): void {
-    yg.ygNodeStyleSetGap(this.ptr, gutter, gap);
-  }
-
-  setGapPercent(gutter: number, gap: number): void {
-    yg.ygNodeStyleSetGapPercent(this.ptr, gutter, gap);
-  }
-
-  setWidth(width: number | "auto"): void {
-    if (width === "auto") {
-      yg.ygNodeStyleSetWidthAuto(this.ptr);
-    } else {
-      yg.ygNodeStyleSetWidth(this.ptr, width);
+  setPosition(edge: Edge, position: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(position);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetPositionPercent(this.ptr, edge, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetPosition(this.ptr, edge, asNumber);
     }
   }
 
-  setWidthPercent(width: number): void {
-    yg.ygNodeStyleSetWidthPercent(this.ptr, width);
+  setPositionPercent(edge: Edge, position: number | undefined): void {
+    if (position !== undefined) {
+      yg.ygNodeStyleSetPositionPercent(this.ptr, edge, position);
+    }
+  }
+
+  setPositionAuto(edge: Edge): void {
+    yg.ygNodeStyleSetPositionAuto(this.ptr, edge);
+  }
+
+  setMargin(
+    edge: Edge,
+    margin: number | "auto" | `${number}%` | undefined
+  ): void {
+    const { unit, asNumber } = parseValue(margin);
+    if (unit === Unit.Auto) {
+      yg.ygNodeStyleSetMarginAuto(this.ptr, edge);
+    } else if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetMarginPercent(this.ptr, edge, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetMargin(this.ptr, edge, asNumber);
+    }
+  }
+
+  setMarginPercent(edge: Edge, margin: number | undefined): void {
+    if (margin !== undefined) {
+      yg.ygNodeStyleSetMarginPercent(this.ptr, edge, margin);
+    }
+  }
+
+  setMarginAuto(edge: Edge): void {
+    yg.ygNodeStyleSetMarginAuto(this.ptr, edge);
+  }
+
+  setPadding(edge: Edge, padding: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(padding);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetPaddingPercent(this.ptr, edge, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetPadding(this.ptr, edge, asNumber);
+    }
+  }
+
+  setPaddingPercent(edge: Edge, padding: number | undefined): void {
+    if (padding !== undefined) {
+      yg.ygNodeStyleSetPaddingPercent(this.ptr, edge, padding);
+    }
+  }
+
+  setBorder(edge: Edge, border: number | undefined): void {
+    if (border !== undefined) {
+      yg.ygNodeStyleSetBorder(this.ptr, edge, border);
+    }
+  }
+
+  getBorder(edge: Edge): number {
+    return yg.ygNodeStyleGetBorder(this.ptr, edge);
+  }
+
+  setGap(gutter: Gutter, gap: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(gap);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetGapPercent(this.ptr, gutter, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetGap(this.ptr, gutter, asNumber);
+    }
+  }
+
+  setGapPercent(gutter: Gutter, gap: number | undefined): void {
+    if (gap !== undefined) {
+      yg.ygNodeStyleSetGapPercent(this.ptr, gutter, gap);
+    }
+  }
+
+  setWidth(width: number | "auto" | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(width);
+    if (unit === Unit.Auto) {
+      yg.ygNodeStyleSetWidthAuto(this.ptr);
+    } else if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetWidthPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetWidth(this.ptr, asNumber);
+    }
+  }
+
+  setWidthPercent(width: number | undefined): void {
+    if (width !== undefined) {
+      yg.ygNodeStyleSetWidthPercent(this.ptr, width);
+    }
   }
 
   setWidthAuto(): void {
     yg.ygNodeStyleSetWidthAuto(this.ptr);
   }
 
-  setHeight(height: number | "auto"): void {
-    if (height === "auto") {
+  setHeight(height: number | "auto" | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(height);
+    if (unit === Unit.Auto) {
       yg.ygNodeStyleSetHeightAuto(this.ptr);
-    } else {
-      yg.ygNodeStyleSetHeight(this.ptr, height);
+    } else if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetHeightPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetHeight(this.ptr, asNumber);
     }
   }
 
-  setHeightPercent(height: number): void {
-    yg.ygNodeStyleSetHeightPercent(this.ptr, height);
+  setHeightPercent(height: number | undefined): void {
+    if (height !== undefined) {
+      yg.ygNodeStyleSetHeightPercent(this.ptr, height);
+    }
   }
 
   setHeightAuto(): void {
     yg.ygNodeStyleSetHeightAuto(this.ptr);
   }
 
-  setMinWidth(minWidth: number): void {
-    yg.ygNodeStyleSetMinWidth(this.ptr, minWidth);
+  setMinWidth(minWidth: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(minWidth);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetMinWidthPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetMinWidth(this.ptr, asNumber);
+    }
   }
 
-  setMinWidthPercent(minWidth: number): void {
-    yg.ygNodeStyleSetMinWidthPercent(this.ptr, minWidth);
+  setMinWidthPercent(minWidth: number | undefined): void {
+    if (minWidth !== undefined) {
+      yg.ygNodeStyleSetMinWidthPercent(this.ptr, minWidth);
+    }
   }
 
-  setMinHeight(minHeight: number): void {
-    yg.ygNodeStyleSetMinHeight(this.ptr, minHeight);
+  setMinHeight(minHeight: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(minHeight);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetMinHeightPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetMinHeight(this.ptr, asNumber);
+    }
   }
 
-  setMinHeightPercent(minHeight: number): void {
-    yg.ygNodeStyleSetMinHeightPercent(this.ptr, minHeight);
+  setMinHeightPercent(minHeight: number | undefined): void {
+    if (minHeight !== undefined) {
+      yg.ygNodeStyleSetMinHeightPercent(this.ptr, minHeight);
+    }
   }
 
-  setMaxWidth(maxWidth: number): void {
-    yg.ygNodeStyleSetMaxWidth(this.ptr, maxWidth);
+  setMaxWidth(maxWidth: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(maxWidth);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetMaxWidthPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetMaxWidth(this.ptr, asNumber);
+    }
   }
 
-  setMaxWidthPercent(maxWidth: number): void {
-    yg.ygNodeStyleSetMaxWidthPercent(this.ptr, maxWidth);
+  setMaxWidthPercent(maxWidth: number | undefined): void {
+    if (maxWidth !== undefined) {
+      yg.ygNodeStyleSetMaxWidthPercent(this.ptr, maxWidth);
+    }
   }
 
-  setMaxHeight(maxHeight: number): void {
-    yg.ygNodeStyleSetMaxHeight(this.ptr, maxHeight);
+  setMaxHeight(maxHeight: number | `${number}%` | undefined): void {
+    const { unit, asNumber } = parseValue(maxHeight);
+    if (unit === Unit.Percent) {
+      yg.ygNodeStyleSetMaxHeightPercent(this.ptr, asNumber!);
+    } else if (unit === Unit.Point && asNumber !== undefined) {
+      yg.ygNodeStyleSetMaxHeight(this.ptr, asNumber);
+    }
   }
 
-  setMaxHeightPercent(maxHeight: number): void {
-    yg.ygNodeStyleSetMaxHeightPercent(this.ptr, maxHeight);
+  setMaxHeightPercent(maxHeight: number | undefined): void {
+    if (maxHeight !== undefined) {
+      yg.ygNodeStyleSetMaxHeightPercent(this.ptr, maxHeight);
+    }
   }
 
   setAspectRatio(aspectRatio: number): void {
@@ -986,6 +1156,25 @@ export class Config {
 
   getPointScaleFactor(): number {
     return yg.ygConfigGetPointScaleFactor(this.ptr);
+  }
+
+  setErrata(errata: Errata): void {
+    yg.ygConfigSetErrata(this.ptr, errata);
+  }
+
+  getErrata(): Errata {
+    return yg.ygConfigGetErrata(this.ptr) as Errata;
+  }
+
+  setExperimentalFeatureEnabled(
+    feature: ExperimentalFeature,
+    enabled: boolean
+  ): void {
+    yg.ygConfigSetExperimentalFeatureEnabled(this.ptr, feature, enabled);
+  }
+
+  isExperimentalFeatureEnabled(feature: ExperimentalFeature): boolean {
+    return yg.ygConfigIsExperimentalFeatureEnabled(this.ptr, feature);
   }
 }
 
