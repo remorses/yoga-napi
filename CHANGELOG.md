@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- Reduced binary size by stripping debug symbols and using single-threaded mode
+
 ## 0.2.3
 
 - Fixed `MeasureFunction` type to use `MeasureMode` instead of `number` for `widthMode` and `heightMode` parameters

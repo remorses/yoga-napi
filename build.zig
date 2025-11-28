@@ -48,6 +48,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
+        .strip = true, // Strip debug symbols for smaller binaries
+        .single_threaded = true, // Remove threading overhead
     });
 
     const ffi_lib = b.addLibrary(.{
