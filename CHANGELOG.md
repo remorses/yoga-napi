@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Fixed Windows CI: prepare DLL path before running tests
+- Fixed publish workflow: explicitly build TypeScript before publishing
+
 ## 0.1.2
 
 - Added Windows x64 support
