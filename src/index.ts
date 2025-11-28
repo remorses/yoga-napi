@@ -60,6 +60,14 @@ function getLibPath(): string {
     return devPath;
   }
 
+  // On Windows, Zig may put DLLs in bin/ instead of lib/
+  if (platform() === "win32") {
+    const devPathBin = join(import.meta.dir, "..", "zig-out", "bin", libName);
+    if (existsSync(devPathBin)) {
+      return devPathBin;
+    }
+  }
+
   // Check embedded libraries (for bun compile)
   const embedded = getEmbeddedLib();
   if (embedded && existsSync(embedded)) {

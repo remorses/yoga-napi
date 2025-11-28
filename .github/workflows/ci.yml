@@ -64,6 +64,15 @@ jobs:
       - name: Run Bun tests
         run: bun test
 
+      - name: Prepare artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path "zig-out/bin/${{ matrix.lib }}") {
+            New-Item -ItemType Directory -Force -Path "zig-out/lib"
+            Copy-Item "zig-out/bin/${{ matrix.lib }}" "zig-out/lib/${{ matrix.lib }}"
+          }
+        shell: pwsh
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
