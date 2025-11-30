@@ -771,20 +771,20 @@ describe("Memory management", () => {
 
     // Free some, keep others
     for (let i = 0; i < nodes.length; i += 2) {
-      nodes[i].free();
+      nodes[i]!.free();
     }
 
     // Calculate remaining nodes
     for (let i = 1; i < nodes.length; i += 2) {
-      nodes[i].calculateLayout();
-      const width = nodes[i].getComputedWidth();
+      nodes[i]!.calculateLayout();
+      const width = nodes[i]!.getComputedWidth();
       expect(width).toBe(10 + i);
       expect(Number.isNaN(width)).toBe(false);
     }
 
     // Free remaining
     for (let i = 1; i < nodes.length; i += 2) {
-      nodes[i].free();
+      nodes[i]!.free();
     }
 
     config.free();
