@@ -103,3 +103,14 @@ When you make a change:
 2. Update CHANGELOG.md
 3. Commit and push to main
 4. CI will build and publish automatically
+
+
+## working on the library
+
+every time you start working on the project build zig first so we know there are no stale binaries
+
+```bash
+zig build
+```
+
+then try updating zig code and build again to fix issues. every issue must first reproduced with a zig test or bun test. before fixing it
