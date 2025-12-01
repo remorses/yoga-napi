@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.8
+
+- Hardcoded require paths for native modules to make them statically analyzable by bundlers (removed dynamic template literal)
+
 ## 0.2.7
 
 ### Fixes

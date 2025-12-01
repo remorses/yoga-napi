@@ -1,22 +1,32 @@
 import { arch, platform } from "os";
 
-function getPlatform() {
-  const p = platform();
-  const a = arch();
-  if (p === "darwin") return a === "arm64" ? "darwin-arm64" : "darwin-x64";
-  if (p === "linux") return a === "arm64" ? "linux-arm64" : "linux-x64";
-  if (p === "win32") return "windows-x64";
-  throw new Error(`Unsupported platform: ${p}-${a}`);
-}
-
 function loadNativeModule() {
   // Try development path first
   try {
-    return require(`../zig-out/lib/yoga.node`);
+    return require("../zig-out/lib/yoga.node");
   } catch {}
 
-  // Try platform-specific dist path
-  return require(`../dist/${getPlatform()}/yoga.node`);
+  // Load platform-specific dist path (hardcoded for static analysis)
+  const p = platform();
+  const a = arch();
+
+  if (p === "darwin" && a === "arm64") {
+    return require("../dist/darwin-arm64/yoga.node");
+  }
+  if (p === "darwin") {
+    return require("../dist/darwin-x64/yoga.node");
+  }
+  if (p === "linux" && a === "arm64") {
+    return require("../dist/linux-arm64/yoga.node");
+  }
+  if (p === "linux") {
+    return require("../dist/linux-x64/yoga.node");
+  }
+  if (p === "win32") {
+    return require("../dist/windows-x64/yoga.node");
+  }
+
+  throw new Error(`Unsupported platform: ${p}-${a}`);
 }
 
 // Yoga enum definitions
