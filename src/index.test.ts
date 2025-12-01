@@ -611,6 +611,90 @@ describe("Type exports", () => {
   });
 });
 
+describe("Use-after-free protection", () => {
+  test("isFreed returns false before free", () => {
+    const node = Node.create();
+    expect(node.isFreed()).toBe(false);
+    node.free();
+  });
+
+  test("isFreed returns true after free", () => {
+    const node = Node.create();
+    node.free();
+    expect(node.isFreed()).toBe(true);
+  });
+
+  test("isFreed returns true after freeRecursive", () => {
+    const root = Node.create();
+    root.setWidth(100);
+    root.setHeight(100);
+
+    const child = Node.create();
+    root.insertChild(child, 0);
+
+    root.freeRecursive();
+    expect(root.isFreed()).toBe(true);
+  });
+
+  test("methods throw after free", () => {
+    const node = Node.create();
+    node.setWidth(100);
+    node.free();
+
+    expect(() => node.getComputedWidth()).toThrow("Cannot access freed Yoga node");
+    expect(() => node.setWidth(50)).toThrow("Cannot access freed Yoga node");
+    expect(() => node.calculateLayout()).toThrow("Cannot access freed Yoga node");
+    expect(() => node.getFlexDirection()).toThrow("Cannot access freed Yoga node");
+  });
+
+  test("double free is safe (no-op)", () => {
+    const node = Node.create();
+    node.free();
+    // Should not throw
+    node.free();
+    node.free();
+    expect(node.isFreed()).toBe(true);
+  });
+
+  test("double freeRecursive is safe (no-op)", () => {
+    const root = Node.create();
+    const child = Node.create();
+    root.insertChild(child, 0);
+    
+    root.freeRecursive();
+    // Should not throw
+    root.freeRecursive();
+    expect(root.isFreed()).toBe(true);
+  });
+
+  test("accessing freed node in rapid cycles does not crash", () => {
+    // This test verifies the fix for malloc corruption on Linux
+    // Note: Only the root node that called freeRecursive() knows it's freed.
+    // Child nodes' JS wrappers don't automatically know they were freed.
+    const config = Config.create();
+    
+    for (let i = 0; i < 50; i++) {
+      const root = Node.create(config);
+      root.setWidth(100);
+      root.setFlexDirection(FlexDirection.Column);
+      
+      const child = Node.create(config);
+      child.setAlignSelf(Align.FlexStart);
+      child.setMeasureFunc(() => ({ width: 50, height: 50 }));
+      root.insertChild(child, 0);
+      
+      root.calculateLayout();
+      root.freeRecursive();
+      
+      // The root node should throw, not crash
+      expect(() => root.getComputedWidth()).toThrow();
+      expect(() => root.setWidth(50)).toThrow();
+    }
+    
+    config.free();
+  });
+});
+
 describe("Memory management", () => {
   test("freeRecursive cleans up callbacks without errors", () => {
     const root = Node.create();

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.7
+
+### Fixes
+- Added use-after-free protection to prevent crashes when accessing freed nodes
+- Calling methods on a freed node now throws a clear error instead of causing memory corruption
+- Double-free is now safe (no-op) - calling `free()` or `freeRecursive()` multiple times is harmless
+
+### New Features
+- Added `Node.isFreed()` method to check if a node has been freed
+
+### Tests
+- Added comprehensive tests for use-after-free protection
+- Added tests for double-free safety
+
 ## 0.2.5
 
 ### Fixes

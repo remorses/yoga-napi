@@ -529,12 +529,25 @@ export type DirtiedFunction = (node: Node) => void;
 
 export class Node {
   private ptr: Pointer;
+  private _freed: boolean = false;
   private measureCallback: JSCallback | null = null;
   private baselineCallback: JSCallback | null = null;
   private dirtiedCallback: JSCallback | null = null;
 
   private constructor(ptr: Pointer) {
     this.ptr = ptr;
+  }
+
+  /** Check if the node has been freed */
+  isFreed(): boolean {
+    return this._freed;
+  }
+
+  /** Assert that the node has not been freed, throwing an error if it has */
+  private assertNotFreed(): void {
+    if (this._freed) {
+      throw new Error("Cannot access freed Yoga node");
+    }
   }
 
   static create(config?: Config): Node {
@@ -558,22 +571,27 @@ export class Node {
   }
 
   free(): void {
+    if (this._freed) return; // Already freed, no-op
     // Clean up callbacks before freeing the node
     this.unsetMeasureFunc();
     this.unsetBaselineFunc();
     this.unsetDirtiedFunc();
     yg.ygNodeFree(this.ptr);
+    this._freed = true;
   }
 
   freeRecursive(): void {
+    if (this._freed) return; // Already freed, no-op
     // Clean up this node's callbacks before freeing
     // Note: Child nodes' JSCallback objects are not tracked here - if you have
     // references to child Node objects, their callbacks become invalid after this call
     this.cleanupCallbacks();
     yg.ygNodeFreeRecursive(this.ptr);
+    this._freed = true;
   }
 
   reset(): void {
+    this.assertNotFreed();
     // Clean up callbacks before reset since reset clears all state
     this.cleanupCallbacks();
     yg.ygNodeReset(this.ptr);
@@ -596,50 +614,61 @@ export class Node {
   }
 
   clone(): Node {
+    this.assertNotFreed();
     const ptr = yg.ygNodeClone(this.ptr);
     if (!ptr) throw new Error("Failed to clone node");
     return new Node(ptr);
   }
 
   copyStyle(node: Node): void {
+    this.assertNotFreed();
     yg.ygNodeCopyStyle(this.ptr, node.ptr);
   }
 
   setIsReferenceBaseline(isReferenceBaseline: boolean): void {
+    this.assertNotFreed();
     yg.ygNodeSetIsReferenceBaseline(this.ptr, isReferenceBaseline);
   }
 
   isReferenceBaseline(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeIsReferenceBaseline(this.ptr);
   }
 
   setAlwaysFormsContainingBlock(alwaysFormsContainingBlock: boolean): void {
+    this.assertNotFreed();
     yg.ygNodeSetAlwaysFormsContainingBlock(this.ptr, alwaysFormsContainingBlock);
   }
 
   // Hierarchy
   insertChild(child: Node, index: number): void {
+    this.assertNotFreed();
     yg.ygNodeInsertChild(this.ptr, child.ptr, index);
   }
 
   removeChild(child: Node): void {
+    this.assertNotFreed();
     yg.ygNodeRemoveChild(this.ptr, child.ptr);
   }
 
   removeAllChildren(): void {
+    this.assertNotFreed();
     yg.ygNodeRemoveAllChildren(this.ptr);
   }
 
   getChild(index: number): Node | null {
+    this.assertNotFreed();
     const ptr = yg.ygNodeGetChild(this.ptr, index);
     return ptr ? new Node(ptr) : null;
   }
 
   getChildCount(): number {
+    this.assertNotFreed();
     return Number(yg.ygNodeGetChildCount(this.ptr));
   }
 
   getParent(): Node | null {
+    this.assertNotFreed();
     const ptr = yg.ygNodeGetParent(this.ptr);
     return ptr ? new Node(ptr) : null;
   }
@@ -650,29 +679,35 @@ export class Node {
     height?: number | "auto",
     direction: number = Direction.LTR
   ): void {
+    this.assertNotFreed();
     const w = width === "auto" || width === undefined ? NaN : width;
     const h = height === "auto" || height === undefined ? NaN : height;
     yg.ygNodeCalculateLayout(this.ptr, w, h, direction);
   }
 
   hasNewLayout(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeGetHasNewLayout(this.ptr);
   }
 
   markLayoutSeen(): void {
+    this.assertNotFreed();
     yg.ygNodeSetHasNewLayout(this.ptr, false);
   }
 
   markDirty(): void {
+    this.assertNotFreed();
     yg.ygNodeMarkDirty(this.ptr);
   }
 
   isDirty(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeIsDirty(this.ptr);
   }
 
   // Layout results
   getComputedLayout() {
+    this.assertNotFreed();
     return {
       left: yg.ygNodeLayoutGetLeft(this.ptr),
       top: yg.ygNodeLayoutGetTop(this.ptr),
@@ -684,155 +719,193 @@ export class Node {
   }
 
   getComputedLeft(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetLeft(this.ptr);
   }
 
   getComputedTop(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetTop(this.ptr);
   }
 
   getComputedRight(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetRight(this.ptr);
   }
 
   getComputedBottom(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetBottom(this.ptr);
   }
 
   getComputedWidth(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetWidth(this.ptr);
   }
 
   getComputedHeight(): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetHeight(this.ptr);
   }
 
   getComputedBorder(edge: number): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetBorder(this.ptr, edge);
   }
 
   getComputedMargin(edge: number): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetMargin(this.ptr, edge);
   }
 
   getComputedPadding(edge: number): number {
+    this.assertNotFreed();
     return yg.ygNodeLayoutGetPadding(this.ptr, edge);
   }
 
   // Style setters
   setDirection(direction: Direction): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetDirection(this.ptr, direction);
   }
 
   getDirection(): Direction {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetDirection(this.ptr) as Direction;
   }
 
   setFlexDirection(flexDirection: FlexDirection): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlexDirection(this.ptr, flexDirection);
   }
 
   getFlexDirection(): FlexDirection {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetFlexDirection(this.ptr) as FlexDirection;
   }
 
   setJustifyContent(justifyContent: Justify): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetJustifyContent(this.ptr, justifyContent);
   }
 
   getJustifyContent(): Justify {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetJustifyContent(this.ptr) as Justify;
   }
 
   setAlignContent(alignContent: Align): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetAlignContent(this.ptr, alignContent);
   }
 
   getAlignContent(): Align {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetAlignContent(this.ptr) as Align;
   }
 
   setAlignItems(alignItems: Align): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetAlignItems(this.ptr, alignItems);
   }
 
   getAlignItems(): Align {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetAlignItems(this.ptr) as Align;
   }
 
   setAlignSelf(alignSelf: Align): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetAlignSelf(this.ptr, alignSelf);
   }
 
   getAlignSelf(): Align {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetAlignSelf(this.ptr) as Align;
   }
 
   setPositionType(positionType: PositionType): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetPositionType(this.ptr, positionType);
   }
 
   getPositionType(): PositionType {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetPositionType(this.ptr) as PositionType;
   }
 
   setFlexWrap(flexWrap: Wrap): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlexWrap(this.ptr, flexWrap);
   }
 
   getFlexWrap(): Wrap {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetFlexWrap(this.ptr) as Wrap;
   }
 
   setOverflow(overflow: Overflow): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetOverflow(this.ptr, overflow);
   }
 
   getOverflow(): Overflow {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetOverflow(this.ptr) as Overflow;
   }
 
   setDisplay(display: Display): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetDisplay(this.ptr, display);
   }
 
   getDisplay(): Display {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetDisplay(this.ptr) as Display;
   }
 
   setBoxSizing(boxSizing: BoxSizing): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetBoxSizing(this.ptr, boxSizing);
   }
 
   getBoxSizing(): BoxSizing {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetBoxSizing(this.ptr) as BoxSizing;
   }
 
   setFlex(flex: number): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlex(this.ptr, flex);
   }
 
   getFlex(): number {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetFlex(this.ptr);
   }
 
   setFlexGrow(flexGrow: number): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlexGrow(this.ptr, flexGrow);
   }
 
   getFlexGrow(): number {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetFlexGrow(this.ptr);
   }
 
   setFlexShrink(flexShrink: number): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlexShrink(this.ptr, flexShrink);
   }
 
   getFlexShrink(): number {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetFlexShrink(this.ptr);
   }
 
   setFlexBasis(flexBasis: number | "auto" | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(flexBasis);
     if (unit === Unit.Auto) {
       yg.ygNodeStyleSetFlexBasisAuto(this.ptr);
@@ -844,16 +917,19 @@ export class Node {
   }
 
   setFlexBasisPercent(flexBasis: number | undefined): void {
+    this.assertNotFreed();
     if (flexBasis !== undefined) {
       yg.ygNodeStyleSetFlexBasisPercent(this.ptr, flexBasis);
     }
   }
 
   setFlexBasisAuto(): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetFlexBasisAuto(this.ptr);
   }
 
   setPosition(edge: Edge, position: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(position);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetPositionPercent(this.ptr, edge, asNumber!);
@@ -863,12 +939,14 @@ export class Node {
   }
 
   setPositionPercent(edge: Edge, position: number | undefined): void {
+    this.assertNotFreed();
     if (position !== undefined) {
       yg.ygNodeStyleSetPositionPercent(this.ptr, edge, position);
     }
   }
 
   setPositionAuto(edge: Edge): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetPositionAuto(this.ptr, edge);
   }
 
@@ -876,6 +954,7 @@ export class Node {
     edge: Edge,
     margin: number | "auto" | `${number}%` | undefined
   ): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(margin);
     if (unit === Unit.Auto) {
       yg.ygNodeStyleSetMarginAuto(this.ptr, edge);
@@ -887,16 +966,19 @@ export class Node {
   }
 
   setMarginPercent(edge: Edge, margin: number | undefined): void {
+    this.assertNotFreed();
     if (margin !== undefined) {
       yg.ygNodeStyleSetMarginPercent(this.ptr, edge, margin);
     }
   }
 
   setMarginAuto(edge: Edge): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetMarginAuto(this.ptr, edge);
   }
 
   setPadding(edge: Edge, padding: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(padding);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetPaddingPercent(this.ptr, edge, asNumber!);
@@ -906,22 +988,26 @@ export class Node {
   }
 
   setPaddingPercent(edge: Edge, padding: number | undefined): void {
+    this.assertNotFreed();
     if (padding !== undefined) {
       yg.ygNodeStyleSetPaddingPercent(this.ptr, edge, padding);
     }
   }
 
   setBorder(edge: Edge, border: number | undefined): void {
+    this.assertNotFreed();
     if (border !== undefined) {
       yg.ygNodeStyleSetBorder(this.ptr, edge, border);
     }
   }
 
   getBorder(edge: Edge): number {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetBorder(this.ptr, edge);
   }
 
   setGap(gutter: Gutter, gap: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(gap);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetGapPercent(this.ptr, gutter, asNumber!);
@@ -931,12 +1017,14 @@ export class Node {
   }
 
   setGapPercent(gutter: Gutter, gap: number | undefined): void {
+    this.assertNotFreed();
     if (gap !== undefined) {
       yg.ygNodeStyleSetGapPercent(this.ptr, gutter, gap);
     }
   }
 
   setWidth(width: number | "auto" | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(width);
     if (unit === Unit.Auto) {
       yg.ygNodeStyleSetWidthAuto(this.ptr);
@@ -948,16 +1036,19 @@ export class Node {
   }
 
   setWidthPercent(width: number | undefined): void {
+    this.assertNotFreed();
     if (width !== undefined) {
       yg.ygNodeStyleSetWidthPercent(this.ptr, width);
     }
   }
 
   setWidthAuto(): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetWidthAuto(this.ptr);
   }
 
   setHeight(height: number | "auto" | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(height);
     if (unit === Unit.Auto) {
       yg.ygNodeStyleSetHeightAuto(this.ptr);
@@ -969,16 +1060,19 @@ export class Node {
   }
 
   setHeightPercent(height: number | undefined): void {
+    this.assertNotFreed();
     if (height !== undefined) {
       yg.ygNodeStyleSetHeightPercent(this.ptr, height);
     }
   }
 
   setHeightAuto(): void {
+    this.assertNotFreed();
     yg.ygNodeStyleSetHeightAuto(this.ptr);
   }
 
   setMinWidth(minWidth: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(minWidth);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetMinWidthPercent(this.ptr, asNumber!);
@@ -988,12 +1082,14 @@ export class Node {
   }
 
   setMinWidthPercent(minWidth: number | undefined): void {
+    this.assertNotFreed();
     if (minWidth !== undefined) {
       yg.ygNodeStyleSetMinWidthPercent(this.ptr, minWidth);
     }
   }
 
   setMinHeight(minHeight: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(minHeight);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetMinHeightPercent(this.ptr, asNumber!);
@@ -1003,12 +1099,14 @@ export class Node {
   }
 
   setMinHeightPercent(minHeight: number | undefined): void {
+    this.assertNotFreed();
     if (minHeight !== undefined) {
       yg.ygNodeStyleSetMinHeightPercent(this.ptr, minHeight);
     }
   }
 
   setMaxWidth(maxWidth: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(maxWidth);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetMaxWidthPercent(this.ptr, asNumber!);
@@ -1018,12 +1116,14 @@ export class Node {
   }
 
   setMaxWidthPercent(maxWidth: number | undefined): void {
+    this.assertNotFreed();
     if (maxWidth !== undefined) {
       yg.ygNodeStyleSetMaxWidthPercent(this.ptr, maxWidth);
     }
   }
 
   setMaxHeight(maxHeight: number | `${number}%` | undefined): void {
+    this.assertNotFreed();
     const { unit, asNumber } = parseValue(maxHeight);
     if (unit === Unit.Percent) {
       yg.ygNodeStyleSetMaxHeightPercent(this.ptr, asNumber!);
@@ -1033,68 +1133,83 @@ export class Node {
   }
 
   setMaxHeightPercent(maxHeight: number | undefined): void {
+    this.assertNotFreed();
     if (maxHeight !== undefined) {
       yg.ygNodeStyleSetMaxHeightPercent(this.ptr, maxHeight);
     }
   }
 
   setAspectRatio(aspectRatio: number | undefined): void {
+    this.assertNotFreed();
     if (aspectRatio !== undefined) {
       yg.ygNodeStyleSetAspectRatio(this.ptr, aspectRatio);
     }
   }
 
   getAspectRatio(): number {
+    this.assertNotFreed();
     return yg.ygNodeStyleGetAspectRatio(this.ptr);
   }
 
   // Value getters (return {unit, value} like yoga-layout)
   getWidth(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetWidthPacked(this.ptr));
   }
 
   getHeight(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetHeightPacked(this.ptr));
   }
 
   getMinWidth(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetMinWidthPacked(this.ptr));
   }
 
   getMinHeight(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetMinHeightPacked(this.ptr));
   }
 
   getMaxWidth(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetMaxWidthPacked(this.ptr));
   }
 
   getMaxHeight(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetMaxHeightPacked(this.ptr));
   }
 
   getMargin(edge: Edge): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetMarginPacked(this.ptr, edge));
   }
 
   getPadding(edge: Edge): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetPaddingPacked(this.ptr, edge));
   }
 
   getPosition(edge: Edge): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetPositionPacked(this.ptr, edge));
   }
 
   getGap(gutter: Gutter): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetGapPacked(this.ptr, gutter));
   }
 
   getFlexBasis(): Value {
+    this.assertNotFreed();
     return unpackValue(yg.ygNodeStyleGetFlexBasisPacked(this.ptr));
   }
 
   // Callback functions
   setMeasureFunc(measureFunc: MeasureFunction | null): void {
+    this.assertNotFreed();
     this.unsetMeasureFunc(); // Clean up existing callback
 
     if (measureFunc) {
@@ -1132,6 +1247,7 @@ export class Node {
   }
 
   unsetMeasureFunc(): void {
+    if (this._freed) return; // Skip if already freed
     if (this.measureCallback) {
       this.measureCallback.close();
       this.measureCallback = null;
@@ -1140,10 +1256,12 @@ export class Node {
   }
 
   hasMeasureFunc(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeHasMeasureFunc(this.ptr);
   }
 
   setBaselineFunc(baselineFunc: BaselineFunction | null): void {
+    this.assertNotFreed();
     this.unsetBaselineFunc(); // Clean up existing callback
 
     if (baselineFunc) {
@@ -1167,6 +1285,7 @@ export class Node {
   }
 
   unsetBaselineFunc(): void {
+    if (this._freed) return; // Skip if already freed
     if (this.baselineCallback) {
       this.baselineCallback.close();
       this.baselineCallback = null;
@@ -1175,10 +1294,12 @@ export class Node {
   }
 
   hasBaselineFunc(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeHasBaselineFunc(this.ptr);
   }
 
   setDirtiedFunc(dirtiedFunc: DirtiedFunction | null): void {
+    this.assertNotFreed();
     this.unsetDirtiedFunc(); // Clean up existing callback
 
     if (dirtiedFunc) {
@@ -1202,6 +1323,7 @@ export class Node {
   }
 
   unsetDirtiedFunc(): void {
+    if (this._freed) return; // Skip if already freed
     if (this.dirtiedCallback) {
       this.dirtiedCallback.close();
       this.dirtiedCallback = null;
@@ -1210,6 +1332,7 @@ export class Node {
   }
 
   hasDirtiedFunc(): boolean {
+    this.assertNotFreed();
     return yg.ygNodeGetDirtiedFunc(this.ptr) !== null;
   }
 }
