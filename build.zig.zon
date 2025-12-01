@@ -9,6 +9,10 @@
             .url = "git+https://github.com/facebook/yoga#909e4bea6e6764e4028d5e47b2f67486e6d26c7e",
             .hash = "1220ef123b055ea7424e6004cd18daf05d70e01e95d5901f61a76d91cf6379af1fe9",
         },
+        .napigen = .{
+            .url = "git+https://github.com/cztomsik/napigen#main",
+            .hash = "122038c9528848729f37fd87d2eefeb2ed7c8d11d24aafd451334d29445f7e87eba7",
+        },
     },
 
     .paths = .{

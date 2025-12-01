@@ -1,4 +1,5 @@
 const std = @import("std");
+const napigen = @import("napigen");
 
 const CXXFLAGS = .{
     "--std=c++20",
@@ -40,48 +41,53 @@ pub fn build(b: *std.Build) void {
     });
 
     // ========================================================================
-    // FFI Library (for Bun FFI)
+    // NAPI Library (for Node.js/Bun)
     // ========================================================================
 
-    const ffi_mod = b.addModule("bun-yoga", .{
-        .root_source_file = b.path("src/yoga_ffi.zig"),
+    const napi_mod = b.addModule("bun-yoga", .{
+        .root_source_file = b.path("src/yoga_napi.zig"),
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
-        .strip = true, // Strip debug symbols for smaller binaries
-        .single_threaded = true, // Remove threading overhead
     });
 
-    const ffi_lib = b.addLibrary(.{
+    const napi_lib = b.addLibrary(.{
         .name = "yoga",
         .linkage = .dynamic,
-        .root_module = ffi_mod,
+        .root_module = napi_mod,
     });
 
+    // Add napigen support
+    napigen.setup(napi_lib);
+
     // Compile yoga C++ source files
-    ffi_lib.addCSourceFiles(.{
+    napi_lib.addCSourceFiles(.{
         .root = yoga_dep.path("yoga"),
         .files = &yoga_files,
         .flags = &CXXFLAGS,
     });
 
     // Install headers for @cImport
-    ffi_lib.installHeadersDirectory(yoga_dep.path("yoga"), "yoga", .{
+    napi_lib.installHeadersDirectory(yoga_dep.path("yoga"), "yoga", .{
         .include_extensions = &.{".h"},
     });
 
     // Add include path for yoga headers
-    ffi_lib.addIncludePath(yoga_dep.path(""));
+    napi_lib.addIncludePath(yoga_dep.path(""));
 
     // Build and install
-    b.installArtifact(ffi_lib);
+    b.installArtifact(napi_lib);
+
+    // Copy the result to a *.node file so we can require() it
+    const copy_node_step = b.addInstallLibFile(napi_lib.getEmittedBin(), "yoga.node");
+    b.getInstallStep().dependOn(&copy_node_step.step);
 
     // ========================================================================
     // Tests
     // ========================================================================
 
     const test_mod = b.addModule("bun-yoga-test", .{
-        .root_source_file = b.path("src/yoga_ffi.zig"),
+        .root_source_file = b.path("src/yoga_napi.zig"),
         .target = target,
         .optimize = optimize,
         .link_libcpp = true,
@@ -90,6 +96,10 @@ pub fn build(b: *std.Build) void {
     const lib_unit_tests = b.addTest(.{
         .root_module = test_mod,
     });
+
+    // Add napigen for tests
+    const napigen_dep = b.dependencyFromBuildZig(napigen, .{});
+    lib_unit_tests.root_module.addImport("napigen", napigen_dep.module("napigen"));
 
     // Add yoga source files for tests too
     lib_unit_tests.addCSourceFiles(.{

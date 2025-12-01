@@ -6,7 +6,9 @@
     "declarationMap": true,
     "noEmit": false,
     "allowImportingTsExtensions": false,
+    "module": "CommonJS",
     "moduleResolution": "node",
+    "esModuleInterop": true,
     "types": ["bun-types"]
   },
   "include": ["src/index.ts"],
