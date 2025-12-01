@@ -963,7 +963,9 @@ export class Node {
   setDirtiedFunc(dirtiedFunc: DirtiedFunction | null): void {
     this.assertNotFreed();
     if (dirtiedFunc) {
-      yg.nodeSetDirtiedFunc(this.ptr, dirtiedFunc);
+      // Wrap callback to pass this node instance
+      const node = this;
+      yg.nodeSetDirtiedFunc(this.ptr, () => dirtiedFunc(node));
     } else {
       yg.nodeUnsetDirtiedFunc(this.ptr);
     }
