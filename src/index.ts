@@ -7,23 +7,24 @@ function loadNativeModule() {
   } catch {}
 
   // Load platform-specific dist path (hardcoded for static analysis)
+  // Each require is wrapped in try/catch to handle Bun's static resolution
   const p = platform();
   const a = arch();
 
   if (p === "darwin" && a === "arm64") {
-    return require("../dist/darwin-arm64/yoga.node");
+    try { return require("../dist/darwin-arm64/yoga.node"); } catch {}
   }
   if (p === "darwin") {
-    return require("../dist/darwin-x64/yoga.node");
+    try { return require("../dist/darwin-x64/yoga.node"); } catch {}
   }
   if (p === "linux" && a === "arm64") {
-    return require("../dist/linux-arm64/yoga.node");
+    try { return require("../dist/linux-arm64/yoga.node"); } catch {}
   }
   if (p === "linux") {
-    return require("../dist/linux-x64/yoga.node");
+    try { return require("../dist/linux-x64/yoga.node"); } catch {}
   }
   if (p === "win32") {
-    return require("../dist/windows-x64/yoga.node");
+    try { return require("../dist/windows-x64/yoga.node"); } catch {}
   }
 
   throw new Error(`Unsupported platform: ${p}-${a}`);
