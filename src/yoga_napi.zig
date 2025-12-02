@@ -139,11 +139,7 @@ fn nodeGetParent(node: *anyopaque) ?*anyopaque {
 // LAYOUT CALCULATION
 //=============================================================================
 
-fn nodeCalculateLayout(js: *napigen.JsContext, node: *anyopaque, availableWidth: f32, availableHeight: f32, ownerDirection: u32) void {
-    // Set current env for callbacks during layout calculation
-    current_env = js.env;
-    defer current_env = null;
-
+fn nodeCalculateLayout(node: *anyopaque, availableWidth: f32, availableHeight: f32, ownerDirection: u32) void {
     c.YGNodeCalculateLayout(@ptrCast(@alignCast(node)), availableWidth, availableHeight, ownerDirection);
 }
 
@@ -159,11 +155,7 @@ fn nodeIsDirty(node: *anyopaque) bool {
     return c.YGNodeIsDirty(@ptrCast(@alignCast(node)));
 }
 
-fn nodeMarkDirty(js: *napigen.JsContext, node: *anyopaque) void {
-    // Set current env for dirtied callback
-    current_env = js.env;
-    defer current_env = null;
-
+fn nodeMarkDirty(node: *anyopaque) void {
     c.YGNodeMarkDirty(@ptrCast(@alignCast(node)));
 }
 
@@ -505,20 +497,13 @@ fn nodeSetAlwaysFormsContainingBlock(node: *anyopaque, alwaysFormsContainingBloc
 
 /// Context struct stored on each node that has callbacks
 const CallbackContext = struct {
-    /// Stored env from when callbacks were set up - used ONLY for cleanup (napi_delete_reference)
-    /// Callbacks should use the thread-local current_env instead
-    setup_env: napigen.napi_env,
+    env: napigen.napi_env,
     measure_func: ?napigen.napi_ref = null,
     baseline_func: ?napigen.napi_ref = null,
     dirtied_func: ?napigen.napi_ref = null,
 };
 
 const callback_allocator = std.heap.c_allocator;
-
-/// Thread-local storage for the current napi_env during layout calculation
-/// This is set before calling YGNodeCalculateLayout and cleared after
-/// Callbacks read from here instead of stored env (which may be stale on Windows)
-threadlocal var current_env: ?napigen.napi_env = null;
 
 /// Get or create callback context for a node
 fn getOrCreateContext(node: c.YGNodeRef, env: napigen.napi_env) *CallbackContext {
@@ -527,7 +512,7 @@ fn getOrCreateContext(node: c.YGNodeRef, env: napigen.napi_env) *CallbackContext
         return @ptrCast(@alignCast(ptr));
     }
     const ctx = callback_allocator.create(CallbackContext) catch @panic("Failed to allocate callback context");
-    ctx.* = CallbackContext{ .setup_env = env };
+    ctx.* = CallbackContext{ .env = env };
     c.YGNodeSetContext(node, ctx);
     return ctx;
 }
@@ -546,15 +531,15 @@ fn freeContext(node: c.YGNodeRef) void {
     const existing = c.YGNodeGetContext(node);
     if (existing) |ptr| {
         const ctx: *CallbackContext = @ptrCast(@alignCast(ptr));
-        // Release refs using setup_env (valid for cleanup operations)
+        // Release refs
         if (ctx.measure_func) |ref| {
-            _ = napigen.napi.napi_delete_reference(ctx.setup_env, ref);
+            _ = napigen.napi.napi_delete_reference(ctx.env, ref);
         }
         if (ctx.baseline_func) |ref| {
-            _ = napigen.napi.napi_delete_reference(ctx.setup_env, ref);
+            _ = napigen.napi.napi_delete_reference(ctx.env, ref);
         }
         if (ctx.dirtied_func) |ref| {
-            _ = napigen.napi.napi_delete_reference(ctx.setup_env, ref);
+            _ = napigen.napi.napi_delete_reference(ctx.env, ref);
         }
         callback_allocator.destroy(ctx);
         c.YGNodeSetContext(node, null);
@@ -572,42 +557,39 @@ fn internalMeasureFunc(
     const ctx = getContext(node) orelse return YGSize{ .width = 0, .height = 0 };
     const measure_ref = ctx.measure_func orelse return YGSize{ .width = 0, .height = 0 };
 
-    // Use the thread-local current_env set during calculateLayout
-    const env = current_env orelse return YGSize{ .width = 0, .height = 0 };
-
     // Get the JS function from ref
     var js_func: napigen.napi_value = undefined;
-    if (napigen.napi.napi_get_reference_value(env, measure_ref, &js_func) != napigen.napi.napi_ok) {
+    if (napigen.napi.napi_get_reference_value(ctx.env, measure_ref, &js_func) != napigen.napi.napi_ok) {
         return YGSize{ .width = 0, .height = 0 };
     }
 
     // Get undefined for 'this'
     var undefined_val: napigen.napi_value = undefined;
-    _ = napigen.napi.napi_get_undefined(env, &undefined_val);
+    _ = napigen.napi.napi_get_undefined(ctx.env, &undefined_val);
 
     // Create arguments
     var args: [4]napigen.napi_value = undefined;
-    _ = napigen.napi.napi_create_double(env, width, &args[0]);
-    _ = napigen.napi.napi_create_uint32(env, widthMode, &args[1]);
-    _ = napigen.napi.napi_create_double(env, height, &args[2]);
-    _ = napigen.napi.napi_create_uint32(env, heightMode, &args[3]);
+    _ = napigen.napi.napi_create_double(ctx.env, width, &args[0]);
+    _ = napigen.napi.napi_create_uint32(ctx.env, widthMode, &args[1]);
+    _ = napigen.napi.napi_create_double(ctx.env, height, &args[2]);
+    _ = napigen.napi.napi_create_uint32(ctx.env, heightMode, &args[3]);
 
     // Call the JS function
     var result: napigen.napi_value = undefined;
-    if (napigen.napi.napi_call_function(env, undefined_val, js_func, 4, &args, &result) != napigen.napi.napi_ok) {
+    if (napigen.napi.napi_call_function(ctx.env, undefined_val, js_func, 4, &args, &result) != napigen.napi.napi_ok) {
         return YGSize{ .width = 0, .height = 0 };
     }
 
     // Extract width and height from result object
     var width_val: napigen.napi_value = undefined;
     var height_val: napigen.napi_value = undefined;
-    _ = napigen.napi.napi_get_named_property(env, result, "width", &width_val);
-    _ = napigen.napi.napi_get_named_property(env, result, "height", &height_val);
+    _ = napigen.napi.napi_get_named_property(ctx.env, result, "width", &width_val);
+    _ = napigen.napi.napi_get_named_property(ctx.env, result, "height", &height_val);
 
     var result_width: f64 = 0;
     var result_height: f64 = 0;
-    _ = napigen.napi.napi_get_value_double(env, width_val, &result_width);
-    _ = napigen.napi.napi_get_value_double(env, height_val, &result_height);
+    _ = napigen.napi.napi_get_value_double(ctx.env, width_val, &result_width);
+    _ = napigen.napi.napi_get_value_double(ctx.env, height_val, &result_height);
 
     return YGSize{ .width = @floatCast(result_width), .height = @floatCast(result_height) };
 }
@@ -621,32 +603,29 @@ fn internalBaselineFunc(
     const ctx = getContext(node) orelse return 0;
     const baseline_ref = ctx.baseline_func orelse return 0;
 
-    // Use the thread-local current_env set during calculateLayout
-    const env = current_env orelse return 0;
-
     // Get the JS function from ref
     var js_func: napigen.napi_value = undefined;
-    if (napigen.napi.napi_get_reference_value(env, baseline_ref, &js_func) != napigen.napi.napi_ok) {
+    if (napigen.napi.napi_get_reference_value(ctx.env, baseline_ref, &js_func) != napigen.napi.napi_ok) {
         return 0;
     }
 
     // Get undefined for 'this'
     var undefined_val: napigen.napi_value = undefined;
-    _ = napigen.napi.napi_get_undefined(env, &undefined_val);
+    _ = napigen.napi.napi_get_undefined(ctx.env, &undefined_val);
 
     // Create arguments
     var args: [2]napigen.napi_value = undefined;
-    _ = napigen.napi.napi_create_double(env, width, &args[0]);
-    _ = napigen.napi.napi_create_double(env, height, &args[1]);
+    _ = napigen.napi.napi_create_double(ctx.env, width, &args[0]);
+    _ = napigen.napi.napi_create_double(ctx.env, height, &args[1]);
 
     // Call the JS function
     var result: napigen.napi_value = undefined;
-    if (napigen.napi.napi_call_function(env, undefined_val, js_func, 2, &args, &result) != napigen.napi.napi_ok) {
+    if (napigen.napi.napi_call_function(ctx.env, undefined_val, js_func, 2, &args, &result) != napigen.napi.napi_ok) {
         return 0;
     }
 
     var result_val: f64 = 0;
-    _ = napigen.napi.napi_get_value_double(env, result, &result_val);
+    _ = napigen.napi.napi_get_value_double(ctx.env, result, &result_val);
 
     return @floatCast(result_val);
 }
@@ -656,22 +635,19 @@ fn internalDirtiedFunc(node: c.YGNodeConstRef) callconv(.c) void {
     const ctx = getContext(node) orelse return;
     const dirtied_ref = ctx.dirtied_func orelse return;
 
-    // Use the thread-local current_env set during markDirty
-    const env = current_env orelse return;
-
     // Get the JS function from ref
     var js_func: napigen.napi_value = undefined;
-    if (napigen.napi.napi_get_reference_value(env, dirtied_ref, &js_func) != napigen.napi.napi_ok) {
+    if (napigen.napi.napi_get_reference_value(ctx.env, dirtied_ref, &js_func) != napigen.napi.napi_ok) {
         return;
     }
 
     // Get undefined for 'this'
     var undefined_val: napigen.napi_value = undefined;
-    _ = napigen.napi.napi_get_undefined(env, &undefined_val);
+    _ = napigen.napi.napi_get_undefined(ctx.env, &undefined_val);
 
     // Call with no arguments
     var result: napigen.napi_value = undefined;
-    _ = napigen.napi.napi_call_function(env, undefined_val, js_func, 0, null, &result);
+    _ = napigen.napi.napi_call_function(ctx.env, undefined_val, js_func, 0, null, &result);
 }
 
 /// Set measure function from JS
@@ -681,7 +657,7 @@ fn nodeSetMeasureFunc(js: *napigen.JsContext, node: *anyopaque, func: napigen.na
 
     // Delete old ref if exists
     if (ctx.measure_func) |old_ref| {
-        _ = napigen.napi.napi_delete_reference(js.env, old_ref);
+        _ = napigen.napi.napi_delete_reference(ctx.env, old_ref);
         ctx.measure_func = null;
     }
 
@@ -727,7 +703,7 @@ fn nodeSetBaselineFunc(js: *napigen.JsContext, node: *anyopaque, func: napigen.n
 
     // Delete old ref if exists
     if (ctx.baseline_func) |old_ref| {
-        _ = napigen.napi.napi_delete_reference(js.env, old_ref);
+        _ = napigen.napi.napi_delete_reference(ctx.env, old_ref);
         ctx.baseline_func = null;
     }
 
@@ -773,7 +749,7 @@ fn nodeSetDirtiedFunc(js: *napigen.JsContext, node: *anyopaque, func: napigen.na
 
     // Delete old ref if exists
     if (ctx.dirtied_func) |old_ref| {
-        _ = napigen.napi.napi_delete_reference(js.env, old_ref);
+        _ = napigen.napi.napi_delete_reference(ctx.env, old_ref);
         ctx.dirtied_func = null;
     }
 
