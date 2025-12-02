@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.11
+
+### Changes
+- Methods on freed nodes now return default values instead of throwing errors (matches yoga-layout behavior)
+- This makes bun-yoga a proper drop-in replacement for yoga-layout
+- Getters return sensible defaults: `0` for computed values, `{ unit: Undefined, value: NaN }` for Value types
+- Setters are no-ops on freed nodes
+- Double-free remains safe (no-op)
+
 ## 0.2.8
 
 ### Breaking Changes

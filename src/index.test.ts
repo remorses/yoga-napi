@@ -11,6 +11,7 @@ import Yoga, {
   Errata,
   ExperimentalFeature,
   Gutter,
+  Unit,
 } from "./index";
 
 describe("Node", () => {
@@ -636,15 +637,20 @@ describe("Use-after-free protection", () => {
     expect(root.isFreed()).toBe(true);
   });
 
-  test("methods throw after free", () => {
+  test("methods return default values after free (yoga-layout compatible)", () => {
     const node = Node.create();
     node.setWidth(100);
     node.free();
 
-    expect(() => node.getComputedWidth()).toThrow("Cannot access freed Yoga node");
-    expect(() => node.setWidth(50)).toThrow("Cannot access freed Yoga node");
-    expect(() => node.calculateLayout()).toThrow("Cannot access freed Yoga node");
-    expect(() => node.getFlexDirection()).toThrow("Cannot access freed Yoga node");
+    // After free, getters return default values instead of throwing (matches yoga-layout)
+    expect(node.getComputedWidth()).toBe(0);
+    expect(node.getWidth()).toEqual({ unit: Unit.Undefined, value: NaN });
+    expect(node.getFlexDirection()).toBe(FlexDirection.Column);
+    expect(node.isDirty()).toBe(true);
+    
+    // Setters are no-ops (don't throw)
+    node.setWidth(50); // Should not throw
+    node.calculateLayout(); // Should not throw
   });
 
   test("double free is safe (no-op)", () => {
@@ -686,9 +692,9 @@ describe("Use-after-free protection", () => {
       root.calculateLayout();
       root.freeRecursive();
       
-      // The root node should throw, not crash
-      expect(() => root.getComputedWidth()).toThrow();
-      expect(() => root.setWidth(50)).toThrow();
+      // The root node should return default values, not crash (matches yoga-layout)
+      expect(root.getComputedWidth()).toBe(0);
+      root.setWidth(50); // Should be a no-op, not crash
     }
     
     config.free();
