@@ -8,19 +8,19 @@ function getEmbeddedLib(): string | undefined {
   try {
     if (process.platform === "darwin" && process.arch === "arm64") {
       // @ts-ignore
-      return require("../dist/darwin-arm64/libyoga.dylib");
+      return require.resolve("../dist/darwin-arm64/libyoga.dylib");
     } else if (process.platform === "darwin" && process.arch === "x64") {
       // @ts-ignore
-      return require("../dist/darwin-x64/libyoga.dylib");
+      return require.resolve("../dist/darwin-x64/libyoga.dylib");
     } else if (process.platform === "linux" && process.arch === "x64") {
       // @ts-ignore
-      return require("../dist/linux-x64/libyoga.so");
+      return require.resolve("../dist/linux-x64/libyoga.so");
     } else if (process.platform === "linux" && process.arch === "arm64") {
       // @ts-ignore
-      return require("../dist/linux-arm64/libyoga.so");
+      return require.resolve("../dist/linux-arm64/libyoga.so");
     } else if (process.platform === "win32") {
       // @ts-ignore
-      return require("../dist/windows-x64/yoga.dll");
+      return require.resolve("../dist/windows-x64/yoga.dll");
     }
     return undefined;
   } catch {
@@ -45,7 +45,7 @@ function getLibPath(): string {
 
   // Check embedded libraries (for bun compile)
   const embedded = getEmbeddedLib();
-  if (embedded && existsSync(embedded)) {
+  if (embedded) {
     return embedded;
   }
 
